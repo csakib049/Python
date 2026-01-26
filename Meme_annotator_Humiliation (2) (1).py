@@ -79,7 +79,6 @@ for v in [0, 1]:
     btn.bind("<Button-1>", lambda e, val=v: set_value(val))
     buttons[v] = btn
 
-
 def load():
     idx = rows_to_annotate[current_index]
     name = df.at[idx, "Image_Name"]
@@ -95,7 +94,6 @@ def load():
 
     value_var.set(-1)
     update_highlight()
-
 
 def save_next():
     global current_index
@@ -121,18 +119,17 @@ def save_next():
 # Keyboard Behavior
 def on_key(event):
     key = event.keysym
-    curr = value_var.get()
 
-    if key == "Return":
+    # If the key is a number
+    if key.isdigit():
+        num = int(key)
+        if num == 0:
+            set_value(0)
+        else:
+            set_value(1)
+
+    elif key == "Return":
         save_next()
-
-    elif key == "Right":
-        new = 0 if curr == -1 else (curr + 1) % 2
-        set_value(new)
-
-    elif key == "Left":
-        new = 1 if curr == -1 else (curr - 1) % 2
-        set_value(new)
 
 root.bind("<Key>", on_key)
 
