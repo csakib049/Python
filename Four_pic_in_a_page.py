@@ -36,7 +36,7 @@ root.configure(bg="#1e1e1e")
 # ---------- SUBJECT (TOP-LEFT) ----------
 tk.Label(
     root,
-    text=target_column,
+    text=f"{target_column} (Press 0 for ALL 0s)",
     fg="white",
     bg="#1e1e1e",
     font=("Arial", 20, "bold")
@@ -105,6 +105,13 @@ for i in range(4):
     p["frame"].grid(row=i//2, column=i%2, padx=20, pady=20)
     panels.append(p)
 
+# ---------- SET ALL TO 0 FUNCTION ----------
+def set_all_to_zero():
+    """Set all 4 panels to 0"""
+    for panel in panels:
+        panel["set_value"](0)
+    print("✅ All 4 images set to 0")
+
 # ---------- LOAD 4 IMAGES ----------
 def load_images():
     for p in panels:
@@ -156,26 +163,51 @@ def save_next():
 
     load_images()
 
-# ---------- KEYBOARD (OPTIONAL) ----------
+# ---------- KEYBOARD SHORTCUTS ----------
 def on_key(event):
     key = event.keysym
+    
+    # Press 0 to set ALL 4 images to 0
+    if key == "0":
+        set_all_to_zero()
+        return
+    
+    # Existing mappings for individual panel selection
     mapping = {
         "1": (0, 0), "2": (0, 1),
         "3": (1, 0), "4": (1, 1),
         "5": (2, 0), "6": (2, 1),
         "7": (3, 0), "8": (3, 1),
     }
+    
     if key in mapping:
         panel_id, val = mapping[key]
-        panels[panel_id]["set_value"](val)
+        if panel_id < len(panels):  # Safety check
+            panels[panel_id]["set_value"](val)
     elif key == "Return":
         save_next()
 
 root.bind("<Key>", on_key)
 
-# ---------- SAVE BUTTON ----------
+# ---------- BUTTONS ----------
+button_frame = tk.Frame(root, bg="#1e1e1e")
+button_frame.pack(pady=10)
+
+# Quick "All 0" button (optional visual aid)
 tk.Button(
-    root,
+    button_frame,
+    text="🔥 ALL 0 (or press 0 key)",
+    command=set_all_to_zero,
+    width=20,
+    height=1,
+    bg="#ef4444",
+    fg="white",
+    font=("Arial", 12, "bold")
+).pack(side=tk.LEFT, padx=10)
+
+# Save button
+tk.Button(
+    button_frame,
     text="Save All & Next ➡️",
     command=save_next,
     width=25,
@@ -183,7 +215,7 @@ tk.Button(
     bg="#3b82f6",
     fg="white",
     font=("Arial", 14)
-).pack(pady=20)
+).pack(side=tk.LEFT, padx=10)
 
 load_images()
 root.mainloop()
