@@ -8,6 +8,7 @@ from tkinter import messagebox
 image_folder = r"E:\MEME research of Subbir\meme sent by sabbir\Memes"
 excel_path = r"E:\MEME research of Subbir\meme sent by sabbir\Memes\Meme_annotations_Binar.xlsx"
 target_column = "Humiliation"
+IMAGES_PER_BATCH = 6  # Changed to 6 images
 
 # ================= DATA =================
 df = pd.read_excel(excel_path)
@@ -15,6 +16,7 @@ df = pd.read_excel(excel_path)
 if target_column not in df.columns:
     df[target_column] = None
 
+# Sort by number in filename
 df = df.sort_values(
     by="Image_Name",
     key=lambda x: x.astype(str).str.extract(r"(\d+)")[0].astype(float)
@@ -29,8 +31,8 @@ current_index = 0
 
 # ================= GUI =================
 root = tk.Tk()
-root.title("4 Image Annotation Tool")
-root.geometry("1400x900")
+root.title("6 Image Annotation Tool")
+root.state('zoomed')  # Auto-maximize window
 root.configure(bg="#1e1e1e")
 
 # ---------- SUBJECT (TOP-LEFT) ----------
@@ -51,9 +53,10 @@ panels = []
 def create_panel(parent):
     panel = {}
 
+    # Width reduced to 450 to fit 3 columns
     frame = tk.Frame(parent, bg="#1e1e1e", bd=2)
     frame.pack_propagate(False)
-    frame.config(width=600, height=350)
+    frame.config(width=450, height=350)
 
     panel["frame"] = frame
 
@@ -62,7 +65,7 @@ def create_panel(parent):
 
     panel["filename"] = tk.Label(
         frame, fg="white", bg="#1e1e1e",
-        font=("Arial", 11)
+        font=("Arial", 10)
     )
     panel["filename"].pack(pady=3)
 
@@ -99,20 +102,23 @@ def update_highlight(panel):
             bg="#3b82f6" if panel["value"].get() == val else "#2d2d2d"
         )
 
-# Create 4 panels (2x2)
-for i in range(4):
+# Create 6 panels (2 rows x 3 columns)
+for i in range(IMAGES_PER_BATCH):
     p = create_panel(grid_frame)
-    p["frame"].grid(row=i//2, column=i%2, padx=20, pady=20)
+    # Logic: i//3 gives row (0,1), i%3 gives col (0,1,2)
+    p["frame"].grid(row=i//3, column=i%3, padx=10, pady=10)
     panels.append(p)
 
 # ---------- SET ALL TO 0 FUNCTION ----------
 def set_all_to_zero():
-    """Set all 4 panels to 0"""
+    """Set all visible panels to 0"""
     for panel in panels:
-        panel["set_value"](0)
-    print("✅ All 4 images set to 0")
+        # Only set if panel has an image loaded
+        if panel["filename"].cget("text") != "":
+            panel["set_value"](0)
+    print("✅ All visible images set to 0")
 
-# ---------- LOAD 4 IMAGES ----------
+# ---------- LOAD IMAGES ----------
 def load_images():
     for p in panels:
         p["value"].set(-1)
@@ -120,7 +126,7 @@ def load_images():
         p["image_label"].configure(image="")
         p["filename"].configure(text="")
 
-    for i in range(4):
+    for i in range(IMAGES_PER_BATCH):
         if current_index + i >= len(rows_to_annotate):
             continue
 
@@ -128,33 +134,39 @@ def load_images():
         name = df.at[idx, "Image_Name"]
         path = os.path.join(image_folder, name)
 
-        img = Image.open(path)
-        img.thumbnail((500, 260))
-        tk_img = ImageTk.PhotoImage(img)
+        try:
+            img = Image.open(path)
+            # Resize logic for smaller panels
+            img.thumbnail((420, 240))
+            tk_img = ImageTk.PhotoImage(img)
 
-        panels[i]["image_label"].configure(image=tk_img)
-        panels[i]["image_label"].image = tk_img
-        panels[i]["filename"].configure(text=name)
+            panels[i]["image_label"].configure(image=tk_img)
+            panels[i]["image_label"].image = tk_img
+            panels[i]["filename"].configure(text=name)
+        except Exception as e:
+            panels[i]["filename"].configure(text="Error loading img")
 
 # ---------- SAVE ----------
 def save_next():
     global current_index
 
-    for i in range(4):
+    # Check for missing values
+    for i in range(IMAGES_PER_BATCH):
         if current_index + i >= len(rows_to_annotate):
             continue
         if panels[i]["value"].get() == -1:
             messagebox.showwarning("Missing", "Please label all visible images")
             return
 
-    for i in range(4):
+    # Save
+    for i in range(IMAGES_PER_BATCH):
         if current_index + i >= len(rows_to_annotate):
             continue
         df.at[rows_to_annotate[current_index + i], target_column] = panels[i]["value"].get()
 
     df.to_excel(excel_path, index=False)
 
-    current_index += 4
+    current_index += IMAGES_PER_BATCH
 
     if current_index >= len(rows_to_annotate):
         messagebox.showinfo("Done", "🎉 Annotation Finished!")
@@ -165,27 +177,35 @@ def save_next():
 
 # ---------- KEYBOARD SHORTCUTS ----------
 def on_key(event):
-    key = event.keysym
+    key = event.keysym.lower()
     
-    # Press 0 to set ALL 4 images to 0
+    # 0 = All Zero
     if key == "0":
         set_all_to_zero()
         return
     
-    # Existing mappings for individual panel selection
+    # Enter = Save
+    if key == "return":
+        save_next()
+        return
+
+    # Spatial Mapping (QWERTY rows match visual rows)
+    # Row 1: Q/W, E/R, T/Y
+    # Row 2: A/S, D/F, G/H
     mapping = {
-        "1": (0, 0), "2": (0, 1),
-        "3": (1, 0), "4": (1, 1),
-        "5": (2, 0), "6": (2, 1),
-        "7": (3, 0), "8": (3, 1),
+        "q": (0, 0), "w": (0, 1),  # Panel 1
+        "e": (1, 0), "r": (1, 1),  # Panel 2
+        "t": (2, 0), "y": (2, 1),  # Panel 3
+        "a": (3, 0), "s": (3, 1),  # Panel 4
+        "d": (4, 0), "f": (4, 1),  # Panel 5
+        "g": (5, 0), "h": (5, 1),  # Panel 6
     }
     
     if key in mapping:
         panel_id, val = mapping[key]
-        if panel_id < len(panels):  # Safety check
-            panels[panel_id]["set_value"](val)
-    elif key == "Return":
-        save_next()
+        if panel_id < len(panels):
+            if panels[panel_id]["filename"].cget("text") != "":
+                panels[panel_id]["set_value"](val)
 
 root.bind("<Key>", on_key)
 
@@ -193,27 +213,21 @@ root.bind("<Key>", on_key)
 button_frame = tk.Frame(root, bg="#1e1e1e")
 button_frame.pack(pady=10)
 
-# Quick "All 0" button (optional visual aid)
 tk.Button(
     button_frame,
-    text="🔥 ALL 0 (or press 0 key)",
+    text="🔥 ALL 0 (Key: 0)",
     command=set_all_to_zero,
-    width=20,
-    height=1,
-    bg="#ef4444",
-    fg="white",
+    width=20, height=1,
+    bg="#ef4444", fg="white",
     font=("Arial", 12, "bold")
 ).pack(side=tk.LEFT, padx=10)
 
-# Save button
 tk.Button(
     button_frame,
-    text="Save All & Next ➡️",
+    text="Save All & Next ➡️ (Enter)",
     command=save_next,
-    width=25,
-    height=2,
-    bg="#3b82f6",
-    fg="white",
+    width=25, height=2,
+    bg="#3b82f6", fg="white",
     font=("Arial", 14)
 ).pack(side=tk.LEFT, padx=10)
 
